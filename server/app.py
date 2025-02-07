@@ -24,6 +24,26 @@ api = Api(app)
 def index():
     return "<h1>Code challenge</h1>"
 
+@app.get("/restaurants")
+def get_restaurants():
+    try:
+        data = Restaurant.query.all() # Get all restaurants
+        if data:
+            response = []
+            for restaurant in data:
+                response.append({
+                    "address": data.address,
+                    "id": data.id,
+                    "name": data.name
+                })
+                return make_response({"restaurants": response}, 200)
+        else:
+            return make_response({"message": "No restaurants found"}, 404)
+    except Exception as esc:
+        return make_response({"error": str(esc)}, 500)
+    
+#app.get("/restaurants/int:id")
+
 
 if __name__ == "__main__":
     app.run(port=5555, debug=True)
