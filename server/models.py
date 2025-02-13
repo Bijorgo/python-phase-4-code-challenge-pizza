@@ -83,17 +83,17 @@ class RestaurantPizza(db.Model, SerializerMixin):
     @validates('price')
     def validate_price(self, key, price):
         if price < 1 or price > 30:
-            raise ValueError(["Price must be between 1 and 30"])
+            raise ValueError(["validation errors"])
         return price
     
     def to_dict(self):
         return {
-            "id": self.id,
+             "id": self.id,
             "price": self.price,
-            "pizza": self.pizza.to_dict() if self.pizza else None,
             "pizza_id": self.pizza_id,
-            "restaurant": self.restaurant.to_dict() if self.restaurant else None,
-            "restaurant_id": self.restaurant_id
+            "restaurant_id": self.restaurant_id,
+            "pizza": self.pizza.to_dict() if self.pizza else None,  # Serialize pizza object
+            "restaurant": self.restaurant.to_dict() if self.restaurant else None  # Serialize restaurant object
         }
 
     def __repr__(self):

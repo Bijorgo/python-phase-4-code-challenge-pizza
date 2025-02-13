@@ -43,20 +43,14 @@ def get_rest_by_id(id):
         if restaurant:
             response = restaurant.to_dict()
             response["restaurant_pizzas"] = [
-                {
-                    "id": rp.id,
-                    "price": rp.price,
-                    "restaurant_id": rp.restaurant_id,
-                    "pizza_id": rp.pizza_id,
-                    "pizza": rp.pizza.to_dict()
-                }
-                for rp in restaurant.rest_pizzas
+                rp.to_dict() for rp in restaurant.rest_pizzas
             ]
             return make_response(response, 200)
         else:
             return make_response({"error": "Restaurant not found"}, 404)
     except Exception as esc:
         return make_response({"error": str(esc)}, 500)
+
 
 @app.delete("/restaurants/<int:id>")
 def delete_rest(id):
