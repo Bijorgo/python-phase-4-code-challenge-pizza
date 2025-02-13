@@ -11,7 +11,7 @@ DATABASE = os.environ.get("DB_URI", f"sqlite:///{os.path.join(BASE_DIR, 'app.db'
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.json.compact = False
+app.config['JSON_COMPACT'] = False
 
 migrate = Migrate(app, db)
 
@@ -36,23 +36,44 @@ def get_restaurants():
     except Exception as esc:
         return make_response({"error": str(esc)}, 500) # Internal Server Error
     
-@app.get("/restaurants/int:id")
-def get_rest_by_id():
-    # if restaurant exists
-        # return JSON data
-    # if not exist
-        # {"error": "Restaurant not found"}, 404 # Not Found
-    pass
+@app.get("/restaurants/<int:id>")
+def get_rest_by_id(id):
+    try:
+        restaurant = Restaurant.query.filter_by(id=id).first()
+        if restaurant:
+            response = restaurant.to_dict()
+            response["restaurant_pizzas"] = [
+                {
+                    "id": rp.id,
+                    "price": rp.price,
+                    "restaurant_id": rp.restaurant_id,
+                    "pizza_id": rp.pizza_id,
+                    "pizza": rp.pizza.to_dict()
+                }
+                for rp in restaurant.rest_pizzas
+            ]
+            return make_response(response, 200)
+        else:
+            return make_response({"error": "Restaurant not found"}, 404)
+    except Exception as esc:
+        return make_response({"error": str(esc)}, 500)
 
-@app.delete("/restaurants/int:id")
-def delete_rest():
-    # if rest exists
-        # remove from database
-        # remove junctions ( a restaurantPizza belongs to a Restaurant)
-            # Consider setting up cascase deltes in models
-    # if not exists
-        # return JSON data {"error": "Restaurant not found"}, 404 # Not Found
-    pass
+@app.delete("/restaurants/<int:id>")
+def delete_rest(id):
+    try:
+        restaurant = Restaurant.query.get(id)
+        if restaurant:
+            # Delete associated restaurant pizzas
+            for rp in restaurant.rest_pizzas:
+                db.session.delete(rp)
+            db.session.delete(restaurant)
+            db.session.commit()
+            return make_response({}, 204)  # No content
+        else:
+            return make_response({"error": "Restaurant not found"}, 404)
+    except Exception as esc:
+        return make_response({"error": str(esc)}, 500)
+
 
 @app.get("/pizzas")
 def get_all_pizzas():
@@ -68,16 +89,40 @@ def get_all_pizzas():
 
 @app.post("/restaurant_pizzas")
 def add_junction():
-    # create new RestaurantPizza associating existing Pizza and Restaurant
-    # body of request has object:
-        # price
-        # pizza_id
-        # restaurant_id
-    # if sucessfully created, 
-        # return JSON data related to RestaurantPizza
-    # if not sucessfully created due to validation error
-        # return JSON data "errors": ["validation errors"], CODE?   
-    pass
+    try:
+        data = request.get_json()
+        price = data.get("price")
+        pizza_id = data.get("pizza_id")
+        restaurant_id = data.get("restaurant_id")
+
+        # Check if pizza and restaurant exist
+        pizza = Pizza.query.get(pizza_id)
+        restaurant = Restaurant.query.get(restaurant_id)
+
+        if not pizza or not restaurant:
+            return make_response({"error": "Pizza or Restaurant not found"}, 404)
+
+        # Create the new RestaurantPizza object
+        try:
+            new_rp = RestaurantPizza(price=price, pizza_id=pizza_id, restaurant_id=restaurant_id)
+            db.session.add(new_rp)
+            db.session.commit()
+
+            # Return created data
+            return make_response({
+                "id": new_rp.id,
+                "price": new_rp.price,
+                "restaurant_id": new_rp.restaurant_id,
+                "pizza_id": new_rp.pizza_id,
+                "pizza": pizza.to_dict(),
+                "restaurant": restaurant.to_dict()
+            }, 201)
+        except ValueError as e:
+            return make_response({"errors": [str(e)]}, 400)
+
+    except Exception as esc:
+        return make_response({"error": str(esc)}, 500)
+
 
 if __name__ == "__main__":
     app.run(port=5555, debug=True)

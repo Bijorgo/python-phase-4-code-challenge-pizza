@@ -22,7 +22,7 @@ class TestApp:
             response = app.test_client().get('/restaurants')
             assert response.status_code == 200
             assert response.content_type == 'application/json'
-            response = response.json
+            response = response.get_json()
             assert [restaurant['id'] for restaurant in response] == [
                 restaurant.id for restaurant in restaurants]
             assert [restaurant['name'] for restaurant in response] == [
